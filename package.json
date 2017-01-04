@@ -1,0 +1,30 @@
+{
+  "name": "botkit-webchat",
+  "version": "0.1.0",
+  "description": "Module to create a WebChat bot for Botkit",
+  "main": "webchatbot.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/smalltalk-ai/botkit-webchat.git"
+  },
+  "keywords": [
+    "botkit",
+    "webchat"
+  ],
+  "author": "Josh Salwen",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/smalltalk-ai/botkit-webchat/issues"
+  },
+  "homepage": "https://github.com/smalltalk-ai/botkit-webchat#readme",
+  "dependencies": {
+    "bodyParser": "^1.15.2",
+    "botkit": "^0.4.6",
+    "config": "^1.24.0",
+    "express": "^4.14.0",
+    "uuid": "^3.0.1"
+  }
+}
