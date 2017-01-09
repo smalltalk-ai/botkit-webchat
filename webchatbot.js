@@ -62,10 +62,15 @@ var Webchatbot = function(configuration) {
 
     bot.send = function(message, cb) {
 
-      var webchat_message = {
-        recipient: {},
-        message: message.sender_action ? undefined : {}
-      };
+      var
+        webchat_message = {
+          recipient: {},
+          message: message.sender_action ? undefined : {}
+        },
+        delay = (Number.isInteger(message.delay) && message.delay > 0) ?
+          message.delay :
+          0
+      ;
 
       if (typeof(message.channel) == 'string' && message.channel.match(/\+\d+\(\d\d\d\)\d\d\d\-\d\d\d\d/)) {
         webchat_message.recipient.phone_number = message.channel;
@@ -124,12 +129,12 @@ var Webchatbot = function(configuration) {
 
       if (bot.replies[webchat_message.recipient.id]) {
         bot.replies[webchat_message.recipient.id].messages.push(
-          { type: 'text', delay: 0, message: webchat_message.message }
+          { type: 'text', delay: delay, message: webchat_message.message }
         );
       } else {
         bot.replies[webchat_message.recipient.id] = {
           sessionId: webchat_message.recipient.id,
-          messages: [ { type: 'text', delay: 0, message: webchat_message.message } ]
+          messages: [ { type: 'text', delay: delay, message: webchat_message.message } ]
         };
       }
       //console.log('');
@@ -214,12 +219,17 @@ var Webchatbot = function(configuration) {
 
     };
 
+    bot.reply = function(src, resp, cb) {
+      bot.delayReply(src, resp, 0, cb);
+    };
 
-    bot.reply = function(src, resp, sendAfter, cb) {
-      var msg = {};
-      sendAfter = sendAfter === undefined ?
-        true :
-        !!sendAfter;
+    bot.delayReply = function(src, resp, delay, cb) {
+      delay = (Number.isInteger(delay) && delay > 0) ? delay : 0;
+      var
+        msg = {
+          delay: delay
+        }
+      ;
       if (typeof(resp) == 'string') {
         msg.text = resp;
       } else {
@@ -227,19 +237,7 @@ var Webchatbot = function(configuration) {
       }
 
       msg.channel = src.channel;
-      if (sendAfter) {
-        if (cb) {
-          var oldCb = cb;
-          cb = function() {
-            oldCb();
-            bot.sendReplies(src);
-          };
-        } else {
-          cb = function() {
-            bot.sendReplies(src);
-          };
-        }
-      }
+
       bot.say(msg, cb);
     };
 
