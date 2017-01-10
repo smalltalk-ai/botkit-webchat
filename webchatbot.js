@@ -6,7 +6,8 @@ var webchatSession = require('./webchat_session.js');
 var facebookTransform = require('./facebook_transform.js');
 
 const
-  RECEIVE_URL = '/webchat/receive'
+  RECEIVE_URL = '/webchat/receive',
+  API_URL = '/webchat/api'
 ;
 
 var Webchatbot = function(configuration) {
@@ -283,6 +284,25 @@ var Webchatbot = function(configuration) {
       webchat_botkit.handleWebhookPayload(req, res, bot);
     });
 
+    webserver.get(`${API_URL}/:threadSetting`, function(req, res) {
+      var
+        threadSetting = req.params.threadSetting || ''
+      ;
+      switch (threadSetting) {
+        case 'menu':
+          res.send(webchat_botkit.api.thread_settings.getMenu);
+          break;
+        case 'greeting':
+          res.send(webchat_botkit.api.thread_settings.getGreeting);
+          break;
+        case 'get-started':
+          res.send(webchat_botkit.api.thread_settings.getGetStarted);
+          break;
+        default:
+          res.sendStatus(404);
+      }
+    });
+
     if (cb) {
       cb();
     }
@@ -429,6 +449,55 @@ var Webchatbot = function(configuration) {
     ;
 
     return webchat_botkit;
+  };
+
+  webchat_botkit.api = {
+    'thread_settings': {
+      greeting: function(greeting) {
+        greeting = greeting || '';
+        var message = {
+            'setting_type': 'greeting',
+            'greeting': {
+                'text': greeting
+            }
+        };
+        webchat_botkit.api.thread_settings.getGreeting = message;
+      },
+      getGreeting: {
+        'setting_type': 'greeting',
+        'greeting': {
+            'text': ''
+        }
+      },
+      get_started: function(payload) {
+        payload = payload || '';
+        var message = {
+          'setting_type': 'call_to_actions',
+          'thread_state': 'new_thread',
+          'call_to_actions': [{ 'payload': payload }]
+        }
+        webchat_botkit.api.thread_settings.getGetStarted = message;
+      },
+      getGetStarted: {
+        'setting_type': 'call_to_actions',
+        'thread_state': 'new_thread',
+        'call_to_actions': [{ 'payload': '' }]
+      },
+      menu: function(payload) {
+        payload = payload || [];
+        var message = {
+          'setting_type': 'call_to_actions',
+          'thread_state': 'existing_thread',
+          'call_to_actions': payload
+        };
+        webchat_botkit.api.thread_settings.getMenu = message;
+      },
+      getMenu: {
+        'setting_type': 'call_to_actions',
+        'thread_state': 'existing_thread',
+        'call_to_actions': []
+      }
+    }
   };
 
   return webchat_botkit;
