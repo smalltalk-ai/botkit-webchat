@@ -70,8 +70,14 @@ var Webchatbot = function(configuration) {
         },
         delay = (Number.isInteger(message.delay) && message.delay > 0) ?
           message.delay :
-          0
+          0,
+        msgType = 'text'
       ;
+      if (message.sender_action) {
+        msgType = message.sender_action;
+      } else if (message.attachment) {
+        msgType = 'template'
+      }
 
       if (typeof(message.channel) == 'string' && message.channel.match(/\+\d+\(\d\d\d\)\d\d\d\-\d\d\d\d/)) {
         webchat_message.recipient.phone_number = message.channel;
@@ -130,12 +136,12 @@ var Webchatbot = function(configuration) {
 
       if (bot.replies[webchat_message.recipient.id]) {
         bot.replies[webchat_message.recipient.id].messages.push(
-          { type: 'text', delay: delay, message: webchat_message.message }
+          { type: msgType, delay: delay, message: webchat_message.message }
         );
       } else {
         bot.replies[webchat_message.recipient.id] = {
           sessionId: webchat_message.recipient.id,
-          messages: [ { type: 'text', delay: delay, message: webchat_message.message } ]
+          messages: [ { type: msgType, delay: delay, message: webchat_message.message } ]
         };
       }
       //console.log('');
@@ -227,15 +233,15 @@ var Webchatbot = function(configuration) {
     bot.delayReply = function(src, resp, delay, cb) {
       delay = (Number.isInteger(delay) && delay > 0) ? delay : 0;
       var
-        msg = {
-          delay: delay
-        }
+        msg = {}
       ;
       if (typeof(resp) == 'string') {
         msg.text = resp;
       } else {
         msg = resp;
       }
+      // set delay
+      msg.delay = delay;
 
       msg.channel = src.channel;
 
