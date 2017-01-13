@@ -77,7 +77,17 @@ var Webchatbot = function(configuration) {
       if (message.sender_action) {
         msgType = message.sender_action;
       } else if (message.attachment) {
-        msgType = 'template'
+        switch (message.attachment.type) {
+          case 'audio':
+          case 'file':
+          case 'image':
+          case 'video':
+            msgType = 'media'
+            break;
+          case 'template':
+          default:
+            msgType = 'template'
+        }
       }
 
       if (typeof(message.channel) == 'string' && message.channel.match(/\+\d+\(\d\d\d\)\d\d\d\-\d\d\d\d/)) {
