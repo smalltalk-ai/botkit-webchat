@@ -49,7 +49,8 @@ var Webchatbot = function(configuration) {
       botkit: botkit,
       config: config || {},
       utterances: botkit.utterances,
-      replies: {}
+      replies: {},
+      replyResponses: {}
     };
 
     bot.startConversation = function(message, cb) {
@@ -181,11 +182,11 @@ var Webchatbot = function(configuration) {
     bot.sendReplies = function(src, cb) {
       //console.log('sendReplies', JSON.stringify(src));
       var
-        key = src.user,
-        replyResponse = src.reply_response,
-        messages = bot.replies[key]
+        user = src.user,
+        replyResponse = bot.replyResponses[user].shift(),
+        messages = bot.replies[user]
       ;
-      delete bot.replies[key]
+      delete bot.replies[user]
       replyResponse.send(messages);
     };
 
@@ -317,16 +318,20 @@ var Webchatbot = function(configuration) {
   };
 
   webchat_botkit.handleWebhookPayload = function(req, res, bot) {
-    // add the res to the bot, so it can plies
-    // once all the messages are added
-    bot.replyResponse = res;
-
     var obj = req.body;
-    //console.log('body', JSON.stringify(obj));
+
     if (obj.entry) {
       for (var e = 0; e < obj.entry.length; e++) {
         for (var m = 0; m < obj.entry[e].messaging.length; m++) {
           var webchat_message = obj.entry[e].messaging[m];
+
+          // add the res to the bot, so it can reply
+          // once all the messages are added
+          if (!bot.replyResponses[webchat_message.sender.id]) {
+            bot.replyResponses[webchat_message.sender.id] = []
+          }
+          bot.replyResponses[webchat_message.sender.id].push(res);
+
           if (webchat_message.message) {
             var message = {
               text: webchat_message.message.text,
