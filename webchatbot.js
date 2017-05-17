@@ -8,7 +8,7 @@ var facebookTransform = require('./facebook_transform.js');
 
 const
   RECEIVE_URL = '/webchat/receive',
-  API_URL = '/webchat/thread-setting'
+  THREAD_SETTING_URL = '/webchat/thread-setting'
 ;
 
 var Webchatbot = function(configuration) {
@@ -302,7 +302,7 @@ var Webchatbot = function(configuration) {
       webchat_botkit.handleWebhookPayload(req, res, bot);
     });
 
-    webserver.get(`${API_URL}/:threadSetting`, cors(), function(req, res) {
+    webserver.get(`${THREAD_SETTING_URL}/:threadSetting?`, cors(), function(req, res) {
       var
         threadSetting = req.params.threadSetting || ''
       ;
