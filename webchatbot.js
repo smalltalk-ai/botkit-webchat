@@ -1,13 +1,14 @@
 var Botkit = require('botkit');
 var express = require('express');
 var uuid = require('uuid');
+var cors = require('cors');
 var bodyParser = require('body-parser');
 var webchatSession = require('./webchat_session.js');
 var facebookTransform = require('./facebook_transform.js');
 
 const
   RECEIVE_URL = '/webchat/receive',
-  API_URL = '/webchat/api'
+  API_URL = '/webchat/thread-setting'
 ;
 
 var Webchatbot = function(configuration) {
@@ -295,13 +296,13 @@ var Webchatbot = function(configuration) {
     webchat_botkit.log(
       '** Serving webhook endpoints for Webchat Platform at: ' +
       'http://' + webchat_botkit.config.hostname + ':' + port + RECEIVE_URL);
-    webserver.post(RECEIVE_URL, function(req, res) {
+    webserver.post(RECEIVE_URL, cors(), function(req, res) {
       // with webchat, the res needs to contain the messages
       // res.send('ok');
       webchat_botkit.handleWebhookPayload(req, res, bot);
     });
 
-    webserver.get(`${API_URL}/:threadSetting`, function(req, res) {
+    webserver.get(`${API_URL}/:threadSetting`, cors(), function(req, res) {
       var
         threadSetting = req.params.threadSetting || ''
       ;
@@ -316,7 +317,11 @@ var Webchatbot = function(configuration) {
           res.send(webchat_botkit.api.thread_settings.getGetStarted);
           break;
         default:
-          res.sendStatus(404);
+          res.send({
+            gettingStarted: webchat_botkit.api.thread_settings.getGetStarted,
+            greetingText: webchat_botkit.api.thread_settings.getGreeting,
+            persistentMenu: webchat_botkit.api.thread_settings.getMenu
+          });
       }
     });
 
