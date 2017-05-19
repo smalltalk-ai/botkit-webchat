@@ -313,12 +313,12 @@ var Webchatbot = function(configuration) {
         case 'greeting':
           res.send(webchat_botkit.api.thread_settings.getGreeting);
           break;
-        case 'get-started':
-          res.send(webchat_botkit.api.thread_settings.getGetStarted);
+        case 'first-messages':
+          res.send(webchat_botkit.api.thread_settings.getFirstMessages);
           break;
         default:
           res.send({
-            gettingStarted: webchat_botkit.api.thread_settings.getGetStarted,
+            firstMessages: webchat_botkit.api.thread_settings.getFirstMessages,
             greetingText: webchat_botkit.api.thread_settings.getGreeting,
             persistentMenu: webchat_botkit.api.thread_settings.getMenu
           });
@@ -480,37 +480,24 @@ var Webchatbot = function(configuration) {
   webchat_botkit.api = {
     'thread_settings': {
       greeting: function(greeting) {
-        greeting = greeting || '';
-        var message = {
-            'setting_type': 'greeting',
-            'greeting': {
-                'text': greeting
-            }
-        };
-        webchat_botkit.api.thread_settings.getGreeting = message;
+        greeting = typeof greeting === 'string' ? greeting : '';
+        webchat_botkit.api.thread_settings.getGreeting = greeting;
       },
-      getGreeting: {
-        'setting_type': 'greeting',
-        'greeting': {
-            'text': ''
+      getGreeting: '',
+      first_messages: function(payload) {
+        payload = Array.isArray(payload) ? payload : [];
+        if (payload && payload.length) {
+          var
+            firstMsg = payload[0],
+            valid = firstMsg.type && firstMsg.message
+          ;
+          payload = valid ? payload : [];
         }
+        webchat_botkit.api.thread_settings.getFirstMessages = payload;
       },
-      get_started: function(payload) {
-        payload = payload || '';
-        var message = {
-          'setting_type': 'call_to_actions',
-          'thread_state': 'new_thread',
-          'call_to_actions': [{ 'payload': payload }]
-        }
-        webchat_botkit.api.thread_settings.getGetStarted = message;
-      },
-      getGetStarted: {
-        'setting_type': 'call_to_actions',
-        'thread_state': 'new_thread',
-        'call_to_actions': [{ 'payload': '' }]
-      },
+      getFirstMessages: [],
       menu: function(payload) {
-        payload = payload || [];
+        payload = Array.isArray(payload) ? payload : [];
         var message = {
           'setting_type': 'call_to_actions',
           'thread_state': 'existing_thread',
