@@ -252,15 +252,12 @@ var WebchatIObot = function(configuration) {
   webchatio_botkit.handleSocketPayload = function(bot) {
 
     bot.io.on('connection', function(socket) {
-      // capture user - TODO; move this to event or inside messages to get user id
-      bot.clients[socket.id] = {
-        socketId: socket.id
-      };
-
       socket.on('messages', function (data) {
+        addClient(bot, socket.id, data)
         webchatio_botkit.ingest(bot, data, socket);
       });
       socket.on('messaging_postbacks ', function (data) {
+        addClient(bot, socket.id, data)
         webchatio_botkit.ingest(bot, data, socket);
       });
       socket.on('disconnect', function () {
@@ -283,7 +280,19 @@ var WebchatIObot = function(configuration) {
     next();
 
   });
-
+  function addClient(bot, socketId, data) {
+    if (!data || !data.sender || !data.sender.id) {
+      webchatio_botkit.log('ERROR data.sender.id is empty', data);
+    }
+    let userId = data.sender.id;
+    if (!bot.clients[userId]) {
+      bot.clients[userId] = {
+        socketId
+      };
+    } else if (!bot.clients[userId].socketId || bot.clients[userId].socketId !== socketId) {
+      bot.clients[userId].socketId = socketId;
+    }
+  }
 
   webchatio_botkit.startTicking();
 
