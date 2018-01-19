@@ -87,12 +87,13 @@ var WebchatIObot = function(configuration) {
       botkit: botkit,
       config: config || {},
       utterances: botkit.utterances,
-      io: null
+      io: null,
+      clients: {}
     };
 
     // send message using socket.io
     bot.send = function(message, cb) {
-      let socket = webchatio_botkit.io.sockets.connected[message.recipient.id];
+      let socket = bot.io.sockets.connected[message.recipient.id];
 
       socket.emit(message);
       if (err) {
@@ -181,7 +182,7 @@ var WebchatIObot = function(configuration) {
     bot.getInstanceInfo = function(cb) {
       return webchatio_botkit.getInstanceInfo(cb);
     };
-
+    return bot;
   });
 
   // TODO: Josh/Patrick - do we need this?
@@ -234,7 +235,7 @@ var WebchatIObot = function(configuration) {
     var io = socketIO(server);
     server.listen(webchatio_botkit.config.port);
 
-    webchatio_botkit.io = io;
+    bot.io = io;
     webchatio_botkit.handleSocketPayload(bot);
 
     webchatio_botkit.log(
@@ -250,17 +251,27 @@ var WebchatIObot = function(configuration) {
 
   webchatio_botkit.handleSocketPayload = function(bot) {
 
-    webchatio_botkit.io.on('connection', function(socket){
-      socket.emit({ hello: 'world' });
-      console.log('****** hit');
-      // capture user
+    bot.io.on('connection', function(socket) {
+      // capture user - TODO; move this to event or inside messages to get user id
+      bot.clients[socket.id] = {
+        socketId: socket.id
+      };
+
       socket.on('messages', function (data) {
-        webchatio_botkit.ingest(bot, message, socket);
+        webchatio_botkit.ingest(bot, data, socket);
       });
       socket.on('messaging_postbacks ', function (data) {
-        webchatio_botkit.ingest(bot, message, socket);
+        webchatio_botkit.ingest(bot, data, socket);
       });
-      webchatio_botkit.handleSocketPayload(socket, bot);
+      socket.on('disconnect', function () {
+        for (client in bot.clients) {
+          if (bot.clients.hasOwnProperty(client) &&
+              bot.clients[client] &&
+              bot.clients[client].socketId === socket.id) {
+            delete bot.clients[client];
+          }
+        }
+      });
     });
   };
 
