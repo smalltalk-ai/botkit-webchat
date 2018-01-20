@@ -96,12 +96,7 @@ var WebchatIObot = function(configuration) {
       let socket = bot.io.sockets.connected[message.recipient.id];
 
       socket.emit(message);
-      if (err) {
-        botkit.debug('SOCKET.IO ERROR', err);
-        return cb && cb(err);
-      }
       //botkit.debug('SOCKET.IO SUCCESS');
-      botkit.debug('SOCKET.IO - not implemented');
       cb && cb(null, body);
     };
 
@@ -251,16 +246,16 @@ var WebchatIObot = function(configuration) {
 
   webchatio_botkit.handleSocketPayload = function(bot) {
 
-    bot.io.on('connection', function(socket) {
-      socket.on('messages', function (data) {
+    bot.io.on('connection', (socket) => {
+      socket.on('messages', (data) => {
         addClient(bot, socket.id, data)
         webchatio_botkit.ingest(bot, data, socket);
       });
-      socket.on('messaging_postbacks ', function (data) {
+      socket.on('messaging_postbacks', (data) => {
         addClient(bot, socket.id, data)
         webchatio_botkit.ingest(bot, data, socket);
       });
-      socket.on('disconnect', function () {
+      socket.on('disconnect', () => {
         for (client in bot.clients) {
           if (bot.clients.hasOwnProperty(client) &&
               bot.clients[client] &&
@@ -268,6 +263,9 @@ var WebchatIObot = function(configuration) {
             delete bot.clients[client];
           }
         }
+      });
+      socket.on('error', (error) => {
+        webchatio_botkit.log('Error webchat.io socket.io', error);
       });
     });
   };
@@ -278,8 +276,9 @@ var WebchatIObot = function(configuration) {
     // into the specific bot instance
     worker.identity = webchatio_botkit.identity;
     next();
-
   });
+
+  // track the socket.id for each connected user
   function addClient(bot, socketId, data) {
     if (!data || !data.sender || !data.sender.id) {
       webchatio_botkit.log('ERROR data.sender.id is empty', data);
