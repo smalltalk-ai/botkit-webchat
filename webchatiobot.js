@@ -1,7 +1,7 @@
 const HTTP = require('http');
 const socketIO = require('socket.io');
 const Botkit = require('botkit');
-const PageId = '9999999';
+const DefaultPageId = '9999999';
 
 var WebchatIObot = function(configuration) {
   // Create a core botkit bot
@@ -312,7 +312,7 @@ var WebchatIObot = function(configuration) {
           message.channel = message.sender.id;
 
           // copy over some facebook specific features
-          message.page = PageId;
+          message.page = bot.botkit.config.pageId || DefaultPageId;
       }
 
       next();
