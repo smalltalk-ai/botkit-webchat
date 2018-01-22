@@ -1,6 +1,7 @@
 const HTTP = require('http');
 const socketIO = require('socket.io');
 const Botkit = require('botkit');
+const DefaultPageId = '9999999';
 
 var WebchatIObot = function(configuration) {
   // Create a core botkit bot
@@ -93,9 +94,14 @@ var WebchatIObot = function(configuration) {
 
     // send message using socket.io
     bot.send = function(message, cb) {
-      let socket = bot.io.sockets.connected[message.recipient.id];
+      var client = bot.clients[message.recipient.id] || {};
+      var socketId = client && client.socketId || null;
+      if (!socketId) {
+        console.log('ERROR', bot.clients[message.recipient.id]);
+      }
+      var socket = bot.io.sockets.connected[socketId];
 
-      socket.emit(message);
+      socket.emit('messages', message);
       //botkit.debug('SOCKET.IO SUCCESS');
       cb && cb(null, body);
     };
@@ -276,6 +282,152 @@ var WebchatIObot = function(configuration) {
     // into the specific bot instance
     worker.identity = webchatio_botkit.identity;
     next();
+  });
+
+  // universal normalizing steps
+  // handle normal messages from users (text, stickers, files, etc count!)
+  webchatio_botkit.middleware.normalize.use(function normalizeMessage(bot, message, next) {
+
+      // handle normalization for sessions events
+      if (message.field && message.field == 'sessions') {
+          message.user = message.value.actor_id;
+          message.channel = message.value.actor_id;
+
+          // copy facebook specific features
+          message.page = message.value;
+
+          // set the event type
+          message.type = message.value.event.toLowerCase();
+      } else {
+
+          //  in case of Checkbox Plug-in sender.id is not present, instead we should look at optin.user_ref
+          if (!message.sender && message.optin && message.optin.user_ref) {
+              message.sender = {id: message.optin.user_ref};
+          }
+
+          // capture the user ID
+          message.user = message.sender.id;
+
+          // since there are only 1:1 channels on Facebook, the channel id is set to the user id
+          message.channel = message.sender.id;
+
+          // copy over some facebook specific features
+          message.page = bot.botkit.config.pageId || DefaultPageId;
+      }
+
+      next();
+  });
+
+  // handle normal messages from users (text, stickers, files, etc count!)
+  webchatio_botkit.middleware.normalize.use(function handleMessage(bot, message, next) {
+      if (message.message) {
+
+          // capture the message text
+          message.text = message.message.text;
+
+          // copy over some facebook specific features
+          message.seq = message.message.seq;
+          message.is_echo = message.message.is_echo;
+          message.mid = message.message.mid;
+          message.sticker_id = message.message.sticker_id;
+          message.attachments = message.message.attachments;
+          message.quick_reply = message.message.quick_reply;
+          message.nlp = message.message.nlp;
+      }
+
+      next();
+
+  });
+
+  // handle postback messages (when a user clicks a button)
+  webchatio_botkit.middleware.normalize.use(function handlePostback(bot, message, next) {
+
+      if (message.postback) {
+
+          message.text = message.postback.payload;
+          message.payload = message.postback.payload;
+
+          message.referral = message.postback.referral;
+
+          message.type = 'facebook_postback';
+
+      }
+
+      next();
+
+  });
+
+  // handle message sub-types
+  webchatio_botkit.middleware.categorize.use(function handleOptIn(bot, message, next) {
+
+      if (message.optin) {
+          message.type = 'facebook_optin';
+      }
+      if (message.delivery) {
+          message.type = 'message_delivered';
+      }
+      if (message.read) {
+          message.type = 'message_read';
+      }
+      if (message.referral) {
+          message.type = 'facebook_referral';
+      }
+      if (message.account_linking) {
+          message.type = 'facebook_account_linking';
+      }
+      if (message.is_echo) {
+          message.type = 'message_echo';
+      }
+
+      next();
+
+  });
+
+  /* Facebook Handover Protocol categorize middleware */
+  webchatio_botkit.middleware.categorize.use(function threadControl(bot, message, next) {
+
+      if (message.app_roles) {
+          message.type = 'facebook_app_roles';
+      }
+      if (message.standby) {
+          message.type = 'standby';
+      }
+      if (message.pass_thread_control) {
+          message.type = 'facebook_receive_thread_control';
+      }
+      if (message.take_thread_control) {
+          message.type = 'facebook_lose_thread_control';
+      }
+
+      next();
+
+  });
+
+  // handle delivery messages
+  webchatio_botkit.middleware.receive.use(function handleDelivery(bot, message, next) {
+
+      if (message.type === 'message_delivered' && webchatio_botkit.config.require_delivery) {
+          // get list of mids in this message
+          for (var m = 0; m < message.delivery.mids.length; m++) {
+              var mid = message.delivery.mids[m];
+
+              // loop through all active conversations this bot is having
+              // and mark messages in conversations as delivered = true
+              // note: we don't pass the real event in here because message_delivered events are excluded from conversations and won't ever match!
+              bot.findConversation({user: message.user}, function(convo) {
+                  if (convo) {
+                      for (var s = 0; s < convo.sent.length; s++) {
+                          if (convo.sent[s].sent_timestamp <= message.delivery.watermark ||
+                        (convo.sent[s].api_response && convo.sent[s].api_response.message_id == mid)) {
+                              convo.sent[s].delivered = true;
+                          }
+                      }
+                  }
+              });
+          }
+      }
+
+      next();
   });
 
   // track the socket.id for each connected user
