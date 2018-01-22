@@ -1,33 +1,20 @@
+const HTTP = require('http');
+const socketIO = require('socket.io');
 const Botkit = require('botkit');
-
-const
-  RECEIVE_URL = '/webchat-io/receive',
-  THREAD_SETTING_URL = '/webchat-io/thread-setting'
-;
 
 var WebchatIObot = function(configuration) {
   // Create a core botkit bot
   var webchatio_botkit = Botkit.core(configuration || {});
 
-  // if socket.io allows race conditions for delivery
-  // - meaning that images is sent first, then text message
-  // - but text message shows first, since it takes less time to send
-  // then need to support option config.require_delivery, which
-  // promises that messages are shown in the order they are sent
-  if (webchat_botkit.config.require_delivery) {
-  }
+  webchatio_botkit.excludeFromConversations(['message_delivered', 'message_echo', 'message_read']);
 
-  // TODO: Josh/Patrick format the message for webchat
+  // format the platform_message into webchat/facebook format
   webchatio_botkit.middleware.format.use(function(bot, message, platform_message, next) {
 
       platform_message.recipient = {};
       platform_message.message =  message.sender_action ? undefined : {};
 
-      if (typeof(message.channel) == 'string' && message.channel.match(/\+\d+\(\d\d\d\)\d\d\d\-\d\d\d\d/)) {
-          platform_message.recipient.phone_number = message.channel;
-      } else {
-          platform_message.recipient.id = message.channel;
-      }
+      platform_message.recipient.id = message.channel;
 
       if (!message.sender_action) {
           if (message.text) {
@@ -99,18 +86,17 @@ var WebchatIObot = function(configuration) {
       type: 'webchat-io',
       botkit: botkit,
       config: config || {},
-      utterances: botkit.utterances
+      utterances: botkit.utterances,
+      io: null,
+      clients: {}
     };
 
+    // send message using socket.io
     bot.send = function(message, cb) {
-      // TODO: Patrick
-      // add logic to send messages to webchat client view socket.io
-      if (err) {
-        botkit.debug('SOCKET.IO ERROR', err);
-        return cb && cb(err);
-      }
+      let socket = bot.io.sockets.connected[message.recipient.id];
+
+      socket.emit(message);
       //botkit.debug('SOCKET.IO SUCCESS');
-      botkit.debug('SOCKET.IO - not implemented');
       cb && cb(null, body);
     };
 
@@ -150,7 +136,7 @@ var WebchatIObot = function(configuration) {
           bot.reply(src, resp, cb);
         }, typingLength);
       });
-    });
+    };
 
     bot.reply = function(src, resp, cb) {
       var msg = {};
@@ -191,7 +177,7 @@ var WebchatIObot = function(configuration) {
     bot.getInstanceInfo = function(cb) {
       return webchatio_botkit.getInstanceInfo(cb);
     };
-
+    return bot;
   });
 
   // TODO: Josh/Patrick - do we need this?
@@ -240,28 +226,72 @@ var WebchatIObot = function(configuration) {
   // set up a web route for receiving outgoing webhooks and/or slash commands
   webchatio_botkit.createWebhookEndpoints = function(webserver, bot, cb) {
 
-    var server = require('http').Server(webserver);
-    var io = require('socket.io')(server);
+    var server = HTTP.Server(webserver);
+    var io = socketIO(server);
+    server.listen(webchatio_botkit.config.port);
 
-    io.on('connection', function(socket){
-      webchatio_botkit.handleSocketPayload(socket, bot);
-    });
+    bot.io = io;
+    webchatio_botkit.handleSocketPayload(bot);
+
     webchatio_botkit.log(
-      '** Serving webhook endpoints for Webchat.io Platform at: ' +
-      'http://' + facebook_botkit.config.hostname + ':' + facebook_botkit.config.port + '/facebook/receive');
+      '** Serving socket.io endpoints for Webchat.io Platform on: ' +
+      'http://' + webchatio_botkit.config.hostname + ':' + webchatio_botkit.config.port);
 
     if (cb) {
       cb();
     }
 
-    return facebook_botkit;
+    return webchatio_botkit;
   };
 
-  // TODO: Patrick
-  webchatio_botkit.handleSocketPayload = function(socket, bot) {
-    // TODO: Patrick/Josh - ingest the message
-    webchatio_botkit.ingest(bot, message);
+  webchatio_botkit.handleSocketPayload = function(bot) {
+
+    bot.io.on('connection', (socket) => {
+      socket.on('messages', (data) => {
+        addClient(bot, socket.id, data)
+        webchatio_botkit.ingest(bot, data, socket);
+      });
+      socket.on('messaging_postbacks', (data) => {
+        addClient(bot, socket.id, data)
+        webchatio_botkit.ingest(bot, data, socket);
+      });
+      socket.on('disconnect', () => {
+        for (client in bot.clients) {
+          if (bot.clients.hasOwnProperty(client) &&
+              bot.clients[client] &&
+              bot.clients[client].socketId === socket.id) {
+            delete bot.clients[client];
+          }
+        }
+      });
+      socket.on('error', (error) => {
+        webchatio_botkit.log('Error webchat.io socket.io', error);
+      });
+    });
   };
+
+  webchatio_botkit.middleware.spawn.use(function(worker, next) {
+
+    // copy the identity that we get when the app initially boots up
+    // into the specific bot instance
+    worker.identity = webchatio_botkit.identity;
+    next();
+  });
+
+  // track the socket.id for each connected user
+  function addClient(bot, socketId, data) {
+    if (!data || !data.sender || !data.sender.id) {
+      webchatio_botkit.log('ERROR data.sender.id is empty', data);
+    }
+    let userId = data.sender.id;
+    if (!bot.clients[userId]) {
+      bot.clients[userId] = {
+        socketId
+      };
+    } else if (!bot.clients[userId].socketId || bot.clients[userId].socketId !== socketId) {
+      bot.clients[userId].socketId = socketId;
+    }
+  }
 
   webchatio_botkit.startTicking();
 
