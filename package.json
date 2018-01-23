@@ -1,8 +1,8 @@
 {
   "name": "botkit-webchat",
-  "version": "0.1.1",
+  "version": "0.2.1",
   "description": "Module to create a WebChat bot for Botkit",
-  "main": "webchatbot.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -22,10 +22,9 @@
   "homepage": "https://github.com/smalltalk-ai/botkit-webchat#readme",
   "dependencies": {
     "body-parser": "^1.15.2",
-    "botkit": "^0.4.6",
     "config": "^1.24.0",
     "cors": "^2.8.3",
-    "express": "^4.14.0",
+    "socket.io": "^2.0.4",
     "uuid": "^3.0.1"
   }
 }
