@@ -1,13 +1,12 @@
 const HTTP = require('http');
 const socketIO = require('socket.io');
-const Botkit = require('botkit');
 const DefaultPageId = '9999999';
 
-var WebchatIObot = function(configuration) {
+var WebchatIObot = function(botkit, configuration) {
   var webchatio_io = null;
 
   // Create a core botkit bot
-  var webchatio_botkit = Botkit.core(configuration || {});
+  var webchatio_botkit = botkit.core(configuration || {});
 
   webchatio_botkit.excludeFromConversations(['message_delivered', 'message_echo', 'message_read']);
 

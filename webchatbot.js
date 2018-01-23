@@ -1,4 +1,3 @@
-var Botkit = require('botkit');
 var express = require('express');
 var uuid = require('uuid');
 var cors = require('cors');
@@ -11,11 +10,11 @@ const
   THREAD_SETTING_URL = '/webchat/thread-setting'
 ;
 
-var Webchatbot = function(configuration) {
+var Webchatbot = function(botkit, configuration) {
   var pageId = configuration.pageId || uuid.v4();
 
   // Create a core botkit bot
-  var webchat_botkit = Botkit.core(configuration || {});
+  var webchat_botkit = botkit.core(configuration || {});
 
   if (webchat_botkit.config.require_delivery) {
 
