@@ -4,6 +4,8 @@ const Botkit = require('botkit');
 const DefaultPageId = '9999999';
 
 var WebchatIObot = function(configuration) {
+  var webchatio_io = null;
+
   // Create a core botkit bot
   var webchatio_botkit = Botkit.core(configuration || {});
 
@@ -236,7 +238,7 @@ var WebchatIObot = function(configuration) {
     var io = socketIO(server);
     server.listen(webchatio_botkit.config.port);
 
-    bot.io = io;
+    webchatio_io = bot.io = io;
     webchatio_botkit.handleSocketPayload(bot);
 
     webchatio_botkit.log(
@@ -253,14 +255,17 @@ var WebchatIObot = function(configuration) {
   webchatio_botkit.handleSocketPayload = function(bot) {
 
     bot.io.on('connection', (socket) => {
+
       socket.on('messages', (data) => {
         addClient(bot, socket.id, data)
         webchatio_botkit.ingest(bot, data, socket);
       });
+
       socket.on('messaging_postbacks', (data) => {
         addClient(bot, socket.id, data)
         webchatio_botkit.ingest(bot, data, socket);
       });
+
       socket.on('disconnect', () => {
         for (client in bot.clients) {
           if (bot.clients.hasOwnProperty(client) &&
@@ -270,8 +275,31 @@ var WebchatIObot = function(configuration) {
           }
         }
       });
+
       socket.on('error', (error) => {
         webchatio_botkit.log('Error webchat.io socket.io', error);
+      });
+
+      // client requests profile information
+      socket.on('profile_request', (data) => {
+        var profile_items = [ '_greeting', '_get_started', '_menu'];
+
+        profile_items.forEach((profile) => {
+          webchatio_botkit.api.messenger_profile.postAPI(
+            webchatio_botkit.api.messenger_profile[profile],
+            socket);
+        });
+      });
+
+      // response after an request to update profile [menu, greeting, get_started]
+      socket.on('profile_update', (data) => {
+        if (data) {
+          if (data.error) {
+            webchatio_botkit.log('ERROR in webchat profile API call: ', data.error.message);
+          } else {
+            webchatio_botkit.debug('Successfully configured webchat profile', data);
+          }
+        }
       });
     });
   };
@@ -429,6 +457,161 @@ var WebchatIObot = function(configuration) {
 
       next();
   });
+
+  var messenger_profile_api = {
+    _greeting: {
+      greeting: null
+    },
+    greeting: function(payload) {
+      var message = {
+        greeting: []
+      };
+      if (Array.isArray(payload)) {
+        message.greeting = payload;
+      } else {
+        message.greeting.push({
+          'locale': 'default',
+          'text': payload
+        });
+      }
+      webchatio_botkit.api.messenger_profile._greeting = message;
+      webchatio_botkit.api.messenger_profile.postAPI(message);
+    },
+    delete_greeting: function() {
+      webchatio_botkit.api.messenger_profile._greeting.greeting = null;
+      webchatio_botkit.api.messenger_profile.deleteAPI('greeting');
+    },
+    get_greeting: function(cb) {
+      return webchatio_botkit.api.messenger_profile._greeting;
+    },
+    _get_started: {
+      get_started: null
+    },
+    get_started: function(payload) {
+      var message = {
+        get_started: {
+          'payload': payload
+        }
+      };
+      webchatio_botkit.api.messenger_profile._get_started = message;
+      webchatio_botkit.api.messenger_profile.postAPI(message);
+    },
+    delete_get_started: function() {
+      webchatio_botkit.api.messenger_profile._get_started.get_started = null;
+      webchatio_botkit.api.messenger_profile.deleteAPI('get_started');
+    },
+    get_get_started: function(cb) {
+      return webchatio_botkit.api.messenger_profile._get_started;
+    },
+    _menu: {
+      persistent_menu: null
+    },
+    menu: function(payload) {
+      var message = {
+        persistent_menu: payload
+      };
+      webchatio_botkit.api.messenger_profile._menu = message;
+      webchatio_botkit.api.messenger_profile.postAPI(message);
+    },
+    delete_menu: function() {
+      webchatio_botkit.api.messenger_profile._menu.persistent_menu = null;
+      webchatio_botkit.api.messenger_profile.deleteAPI('persistent_menu');
+    },
+    get_menu: function(cb) {
+      return webchatio_botkit.api.messenger_profile._menu;
+      if (cb) {
+        cb();
+      }
+    },
+    _account_linking: {
+      account_linking_url: null
+    },
+    account_linking: function(payload) {
+      var message = {
+        account_linking_url: payload
+      };
+      webchatio_botkit.api.messenger_profile._account_linking = message;
+      webchatio_botkit.api.messenger_profile.postAPI(message);
+    },
+    delete_account_linking: function() {
+      webchatio_botkit.api.messenger_profile._account_linking.account_linking_url = null;
+      webchatio_botkit.api.messenger_profile.deleteAPI('account_linking_url');
+    },
+    get_account_linking: function(cb) {
+      return webchatio_botkit.api.messenger_profile._account_linking;
+      if (cb) {
+        cb();
+      }
+    },
+    domain_whitelist: function(payload) {
+      webchatio_botkit.debug('domain_whitelist not supported in webchat.io');
+    },
+    delete_domain_whitelist: function() {
+      webchatio_botkit.debug('delete_domain_whitelist not supported in webchat.io');
+    },
+    get_domain_whitelist: function(cb) {
+      webchatio_botkit.debug('get_domain_whitelist not supported in webchat.io');
+      if (cb) {
+        cb();
+      }
+    },
+    target_audience: function(payload) {
+      webchatio_botkit.debug('target_audience not supported in webchat.io');
+    },
+    delete_target_audience: function() {
+      webchatio_botkit.debug('delete_target_audience not supported in webchat.io');
+    },
+    get_target_audience: function(cb) {
+      webchatio_botkit.debug('get_target_audience not supported in webchat.io');
+      if (cb) {
+        cb();
+      }
+    },
+    home_url: function(payload) {
+      webchatio_botkit.debug('home_url not supported in webchat.io');
+    },
+    delete_home_url: function() {
+      webchatio_botkit.debug('delete_home_url not supported in webchat.io');
+    },
+    get_home_url: function(cb) {
+      webchatio_botkit.debug('get_home_url not supported in webchat.io');
+      if (cb) {
+        cb();
+      }
+    },
+    postAPI: function(message, socket) {
+      if (webchatio_io) {
+        if (socket) {
+          socket.emit('profile_post', message)
+        } else {
+          webchatio_io.sockets.emit('profile_post', message);
+        }
+      }
+    },
+    deleteAPI: function(type) {
+      var message = {
+        fields: [type]
+      };
+
+      if (webchatio_io) {
+        webchatio_io.sockets.emit('profile_delete', message);
+      }
+    },
+    getAPI: function(fields, cb) {
+      webchatio_botkit.debug('getAPI not supported in webchat.io');
+    },
+    get_messenger_code: function(image_size, cb, ref) {
+      webchatio_botkit.debug('get_messenger_code not supported in webchat.io');
+      if (cb) {
+        cb();
+      }
+    }
+  };
+
+  webchatio_botkit.api = {
+    messenger_profile: messenger_profile_api,
+    thread_settings: messenger_profile_api
+  };
 
   // track the socket.id for each connected user
   function addClient(bot, socketId, data) {
