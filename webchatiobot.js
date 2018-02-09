@@ -104,7 +104,7 @@ var WebchatIObot = function(botkit, configuration) {
 
       socket.emit('messages', message);
       //botkit.debug('SOCKET.IO SUCCESS');
-      cb && cb(null, body);
+      cb && cb(null, { recipient_id: message.recipient.id });
     };
 
     bot.startTyping = function(src, cb) {
