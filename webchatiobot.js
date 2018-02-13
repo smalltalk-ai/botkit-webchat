@@ -231,11 +231,9 @@ var WebchatIObot = function(botkit, configuration) {
   };
 
   // set up a web route for receiving outgoing webhooks and/or slash commands
-  webchatio_botkit.createWebhookEndpoints = function(webserver, bot, cb) {
+  webchatio_botkit.createWebhookEndpoints = function(server, bot, cb) {
 
-    var server = HTTP.Server(webserver);
     var io = socketIO(server);
-    server.listen(webchatio_botkit.config.port);
 
     webchatio_io = bot.io = io;
     webchatio_botkit.handleSocketPayload(bot);
