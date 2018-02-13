@@ -11,10 +11,11 @@ const
 ;
 
 var Webchatbot = function(botkit, configuration) {
+  configuration = configuration || {};
   var pageId = configuration.pageId || uuid.v4();
 
   // Create a core botkit bot
-  var webchat_botkit = botkit.core(configuration || {});
+  var webchat_botkit = botkit.core(configuration);
 
   if (webchat_botkit.config.require_delivery) {
 
