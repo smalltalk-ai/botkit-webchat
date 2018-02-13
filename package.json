@@ -1,6 +1,6 @@
 {
   "name": "botkit-webchat",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Module to create a WebChat bot for Botkit",
   "main": "index.js",
   "scripts": {
