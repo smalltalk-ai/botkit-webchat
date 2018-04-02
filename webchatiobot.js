@@ -102,7 +102,12 @@ var WebchatIObot = function(botkit, configuration) {
       }
       var socket = bot.io.sockets.connected[socketId];
 
-      socket.emit('messages', message);
+      if (socket) {
+        socket.emit('messages', message);
+      } else {
+        // ERROR - no socket
+        console.log('ERROR bot.send: socket is empty; client: ', client, '; socketId: ', socketId, '; sockets: ', bot.io && bot.io.sockets);
+      }
       //botkit.debug('SOCKET.IO SUCCESS');
       cb && cb(null, { recipient_id: message.recipient.id });
     };
